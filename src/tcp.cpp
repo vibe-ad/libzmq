@@ -157,6 +157,27 @@ int zmq::tune_tcp_keepalives (fd_t s_,
     return 0;
 }
 
+int zmq::tune_tcp_max_pacing_rate (fd_t sockfd_, int rate_)
+{
+    if (rate_ <= 0)
+        return 0;
+
+    LIBZMQ_UNUSED (sockfd_);
+    LIBZMQ_UNUSED (rate_);
+
+    //  Vibe: spreads queue drains on the wire so bursts fit the EC2 ENA
+    //  token bucket. Per connection, enforced losslessly by the fq qdisc.
+#if defined(ZMQ_HAVE_LINUX) && defined(SO_MAX_PACING_RATE)
+    const unsigned int rate = static_cast<unsigned int> (rate_);
+    const int rc = setsockopt (sockfd_, SOL_SOCKET, SO_MAX_PACING_RATE,
+                               &rate, sizeof (rate));
+    assert_success_or_recoverable (sockfd_, rc);
+    return rc;
+#else
+    return 0;
+#endif
+}
+
 int zmq::tune_tcp_maxrt (fd_t sockfd_, int timeout_)
 {
     if (timeout_ <= 0)

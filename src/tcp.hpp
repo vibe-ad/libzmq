@@ -29,6 +29,9 @@ int tune_tcp_keepalives (fd_t s_,
 //  Tunes TCP max retransmit timeout
 int tune_tcp_maxrt (fd_t sockfd_, int timeout_);
 
+//  Vibe: cap connection egress in bytes/sec via SO_MAX_PACING_RATE (fq qdisc).
+int tune_tcp_max_pacing_rate (fd_t sockfd_, int rate_);
+
 //  Writes data to the socket. Returns the number of bytes actually
 //  written (even zero is to be considered to be a success). In case
 //  of error or orderly shutdown by the other peer -1 is returned.
