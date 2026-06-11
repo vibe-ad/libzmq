@@ -339,6 +339,8 @@ ZMQ_EXPORT const char *zmq_msg_gets (const zmq_msg_t *msg_,
 #define ZMQ_XPUB_VERBOSER 78
 #define ZMQ_CONNECT_TIMEOUT 79
 #define ZMQ_TCP_MAXRT 80
+/*  Vibe custom: per-connection SO_MAX_PACING_RATE in bytes/sec (0 = off)     */
+#define ZMQ_TCP_MAX_PACING_RATE 9000
 #define ZMQ_THREAD_SAFE 81
 #define ZMQ_MULTICAST_MAXTPDU 84
 #define ZMQ_VMCI_BUFFER_SIZE 85
@@ -662,9 +664,6 @@ ZMQ_EXPORT void zmq_threadclose (void *thread_);
 #define ZMQ_NORM_NUM_PARITY 122
 #define ZMQ_NORM_NUM_AUTOPARITY 123
 #define ZMQ_NORM_PUSH 124
-
-/*  Vibe custom options                                                       */
-#define ZMQ_TCP_MAX_PACING_RATE 9000
 
 /*  DRAFT ZMQ_NORM_MODE options                                               */
 #define ZMQ_NORM_FIXED 0
