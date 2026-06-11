@@ -663,6 +663,9 @@ ZMQ_EXPORT void zmq_threadclose (void *thread_);
 #define ZMQ_NORM_NUM_AUTOPARITY 123
 #define ZMQ_NORM_PUSH 124
 
+/*  Vibe custom options                                                       */
+#define ZMQ_TCP_MAX_PACING_RATE 9000
+
 /*  DRAFT ZMQ_NORM_MODE options                                               */
 #define ZMQ_NORM_FIXED 0
 #define ZMQ_NORM_CC 1

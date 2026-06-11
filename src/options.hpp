@@ -92,6 +92,9 @@ struct options_t
     //  Default 0 (unused)
     int tcp_maxrt;
 
+    //  Vibe: per-connection SO_MAX_PACING_RATE in bytes/sec. 0 = unpaced.
+    int tcp_max_pacing_rate;
+
     //  Disable reconnect under certain conditions
     //  Default 0
     int reconnect_stop;
