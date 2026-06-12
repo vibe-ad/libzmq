@@ -57,8 +57,6 @@ void zmq::tcp_listener_t::in_event ()
            fd, options.tcp_keepalive, options.tcp_keepalive_cnt,
            options.tcp_keepalive_idle, options.tcp_keepalive_intvl);
     rc = rc | tune_tcp_maxrt (fd, options.tcp_maxrt);
-    rc =
-      rc | tune_tcp_max_pacing_rate (fd, options.tcp_max_pacing_rate);
     if (rc != 0) {
         _socket->event_accept_failed (
           make_unconnected_bind_endpoint_pair (_endpoint), zmq_errno ());

@@ -3,6 +3,7 @@
 #ifndef __ZMQ_OPTIONS_HPP_INCLUDED__
 #define __ZMQ_OPTIONS_HPP_INCLUDED__
 
+#include <memory>
 #include <string>
 #include <vector>
 #include <map>
@@ -31,6 +32,7 @@
 
 namespace zmq
 {
+class pacing_budget_t;
 struct options_t
 {
     options_t ();
@@ -92,8 +94,10 @@ struct options_t
     //  Default 0 (unused)
     int tcp_maxrt;
 
-    //  Vibe: per-connection SO_MAX_PACING_RATE in bytes/sec. 0 = unpaced.
+    //  Vibe: aggregate egress budget for the socket in bytes/sec, divided
+    //  equally among live connections by pacing_budget_t. 0 = unpaced.
     int tcp_max_pacing_rate;
+    std::shared_ptr<pacing_budget_t> pacing_budget;
 
     //  Disable reconnect under certain conditions
     //  Default 0

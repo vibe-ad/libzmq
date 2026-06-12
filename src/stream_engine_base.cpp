@@ -14,6 +14,7 @@
 #include <sstream>
 
 #include "stream_engine_base.hpp"
+#include "pacing_budget.hpp"
 #include "io_thread.hpp"
 #include "session_base.hpp"
 #include "v1_encoder.hpp"
@@ -110,11 +111,17 @@ zmq::stream_engine_base_t::stream_engine_base_t (
 
     //  Put the socket into non-blocking mode.
     unblock_socket (_s);
+
+    if (_options.pacing_budget)
+        _options.pacing_budget->add (_s);
 }
 
 zmq::stream_engine_base_t::~stream_engine_base_t ()
 {
     zmq_assert (!_plugged);
+
+    if (_options.pacing_budget && _s != retired_fd)
+        _options.pacing_budget->remove (_s);
 
     if (_s != retired_fd) {
 #ifdef ZMQ_HAVE_WINDOWS

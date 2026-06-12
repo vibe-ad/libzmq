@@ -6,6 +6,7 @@
 #include <set>
 
 #include "options.hpp"
+#include "pacing_budget.hpp"
 #include "err.hpp"
 #include "macros.hpp"
 
@@ -390,6 +391,9 @@ int zmq::options_t::setsockopt (int option_,
         case ZMQ_TCP_MAX_PACING_RATE:
             if (is_int && value >= 0) {
                 tcp_max_pacing_rate = value;
+                pacing_budget = value > 0
+                                  ? std::make_shared<pacing_budget_t> (value)
+                                  : std::shared_ptr<pacing_budget_t> ();
                 return 0;
             }
             break;
