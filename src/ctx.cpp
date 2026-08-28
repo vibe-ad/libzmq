@@ -8,6 +8,7 @@
 
 #include <limits>
 #include <climits>
+#include <iterator>
 #include <new>
 #include <sstream>
 #include <string.h>
@@ -525,17 +526,35 @@ zmq::object_t *zmq::ctx_t::get_reaper () const
 
 zmq::thread_ctx_t::thread_ctx_t () :
     _thread_priority (ZMQ_THREAD_PRIORITY_DFLT),
-    _thread_sched_policy (ZMQ_THREAD_SCHED_POLICY_DFLT)
+    _thread_sched_policy (ZMQ_THREAD_SCHED_POLICY_DFLT),
+    _thread_affinity_pin (false)
 {
 }
 
 void zmq::thread_ctx_t::start_thread (thread_t &thread_,
                                       thread_fn *tfn_,
                                       void *arg_,
-                                      const char *name_) const
+                                      const char *name_,
+                                      int cpu_slot_) const
 {
-    thread_.setSchedulingParameters (_thread_priority, _thread_sched_policy,
-                                     _thread_affinity_cpus);
+    //  Without ZMQ_THREAD_AFFINITY_CPU_PIN every background thread receives
+    //  the whole affinity set as one mask, which lets the scheduler stack
+    //  several I/O threads onto one CPU and migrate them as a group. With it,
+    //  a thread that carries a slot index (the I/O threads) is pinned to a
+    //  single CPU instead: the slot-th of the set in ascending order. Threads
+    //  without a slot (the reaper) and out-of-range slots keep the full set.
+    if (_thread_affinity_pin && cpu_slot_ >= 0
+        && static_cast<size_t> (cpu_slot_) < _thread_affinity_cpus.size ()) {
+        std::set<int>::const_iterator it = _thread_affinity_cpus.begin ();
+        std::advance (it, cpu_slot_);
+        std::set<int> cpu;
+        cpu.insert (*it);
+        thread_.setSchedulingParameters (_thread_priority,
+                                         _thread_sched_policy, cpu);
+    } else
+        thread_.setSchedulingParameters (_thread_priority,
+                                         _thread_sched_policy,
+                                         _thread_affinity_cpus);
 
     char namebuf[16] = "";
     snprintf (namebuf, sizeof (namebuf), "%s%sZMQbg%s%s",
@@ -588,6 +607,14 @@ int zmq::thread_ctx_t::set (int option_, const void *optval_, size_t optvallen_)
             }
             break;
 
+        case ZMQ_THREAD_AFFINITY_CPU_PIN:
+            if (is_int && value >= 0) {
+                scoped_lock_t locker (_opt_sync);
+                _thread_affinity_pin = (value != 0);
+                return 0;
+            }
+            break;
+
         case ZMQ_THREAD_NAME_PREFIX:
             // start_thread() allows max 16 chars for thread name
             if (is_int) {
@@ -621,6 +648,14 @@ int zmq::thread_ctx_t::get (int option_,
             if (is_int) {
                 scoped_lock_t locker (_opt_sync);
                 *value = _thread_sched_policy;
+                return 0;
+            }
+            break;
+
+        case ZMQ_THREAD_AFFINITY_CPU_PIN:
+            if (is_int) {
+                scoped_lock_t locker (_opt_sync);
+                *value = _thread_affinity_pin ? 1 : 0;
                 return 0;
             }
             break;

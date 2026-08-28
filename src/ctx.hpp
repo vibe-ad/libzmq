@@ -43,7 +43,8 @@ class thread_ctx_t
     void start_thread (thread_t &thread_,
                        thread_fn *tfn_,
                        void *arg_,
-                       const char *name_ = NULL) const;
+                       const char *name_ = NULL,
+                       int cpu_slot_ = -1) const;
 
     int set (int option_, const void *optval_, size_t optvallen_);
     int get (int option_, void *optval_, const size_t *optvallen_);
@@ -57,6 +58,10 @@ class thread_ctx_t
     int _thread_priority;
     int _thread_sched_policy;
     std::set<int> _thread_affinity_cpus;
+    //  When true each I/O thread is pinned to a single CPU of
+    //  _thread_affinity_cpus (the n-th, ascending) instead of receiving the
+    //  whole set as its mask.
+    bool _thread_affinity_pin;
     std::string _thread_name_prefix;
 };
 

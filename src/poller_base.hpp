@@ -138,7 +138,7 @@ class worker_poller_base_t : public poller_base_t
     worker_poller_base_t (const thread_ctx_t &ctx_);
 
     // Methods from the poller concept.
-    void start (const char *name = NULL);
+    void start (const char *name = NULL, int cpu_slot = -1);
 
   protected:
     //  Checks whether the currently executing thread is the worker thread

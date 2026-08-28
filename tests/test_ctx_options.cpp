@@ -13,6 +13,9 @@ SETUP_TEARDOWN_TESTCONTEXT
 #include <sys/resource.h>
 #include <unistd.h> // for sleep()
 #include <sched.h>
+#include <dirent.h>
+#include <cstring>
+#include <cstdio>
 
 #define TEST_POLICY                                                            \
     (SCHED_OTHER) // NOTE: SCHED_OTHER is the default Linux scheduler
@@ -50,6 +53,119 @@ bool is_allowed_to_raise_priority ()
 
 #endif
 
+
+#ifdef ZMQ_HAVE_LINUX
+
+//  Returns the tid of the calling process' thread named name_, or 0 if no
+//  such thread appears within a second. libzmq names a background thread from
+//  inside the thread itself, right after applying its scheduling parameters,
+//  so a thread that can be found by name has already been pinned.
+static pid_t await_thread_named (const char *name_)
+{
+    for (int attempt = 0; attempt < 100; attempt++) {
+        DIR *tasks = opendir ("/proc/self/task");
+        if (tasks) {
+            for (struct dirent *e = readdir (tasks); e; e = readdir (tasks)) {
+                char path[288], comm[32];
+                snprintf (path, sizeof (path), "/proc/self/task/%s/comm",
+                          e->d_name);
+                FILE *f = fopen (path, "r");
+                if (!f)
+                    continue;
+                const char *read = fgets (comm, sizeof (comm), f);
+                fclose (f);
+                if (!read)
+                    continue;
+                comm[strcspn (comm, "\n")] = '\0';
+                if (strcmp (comm, name_) == 0) {
+                    closedir (tasks);
+                    return static_cast<pid_t> (atoi (e->d_name));
+                }
+            }
+            closedir (tasks);
+        }
+        msleep (10);
+    }
+    return 0;
+}
+
+static int cpu_set_count (const cpu_set_t *set_)
+{
+    int n = 0;
+    for (int i = 0; i < CPU_SETSIZE; i++)
+        if (CPU_ISSET (i, set_))
+            n++;
+    return n;
+}
+
+//  Brings up a context with two I/O threads and cpus_ as its affinity list,
+//  then asserts that each ZMQbg/IO/<n> ends up with expected_count_ CPUs in
+//  its mask -- and, when pinned, that the CPU is the n-th of the list. The
+//  name prefix keeps the two contexts of a run distinguishable in /proc.
+static void check_io_thread_affinity (int prefix_,
+                                      int pin_,
+                                      const int *cpus_,
+                                      int expected_count_)
+{
+    void *ctx = zmq_ctx_new ();
+    TEST_ASSERT_NOT_NULL (ctx);
+    TEST_ASSERT_SUCCESS_ERRNO (zmq_ctx_set (ctx, ZMQ_IO_THREADS, 2));
+    TEST_ASSERT_SUCCESS_ERRNO (
+      zmq_ctx_set (ctx, ZMQ_THREAD_NAME_PREFIX, prefix_));
+    TEST_ASSERT_SUCCESS_ERRNO (
+      zmq_ctx_set (ctx, ZMQ_THREAD_AFFINITY_CPU_ADD, cpus_[0]));
+    TEST_ASSERT_SUCCESS_ERRNO (
+      zmq_ctx_set (ctx, ZMQ_THREAD_AFFINITY_CPU_ADD, cpus_[1]));
+    TEST_ASSERT_SUCCESS_ERRNO (
+      zmq_ctx_set (ctx, ZMQ_THREAD_AFFINITY_CPU_PIN, pin_));
+
+    //  I/O threads are launched on creation of the first socket.
+    void *socket = zmq_socket (ctx, ZMQ_PUSH);
+    TEST_ASSERT_NOT_NULL (socket);
+
+    for (int n = 0; n < 2; n++) {
+        char name[16];
+        snprintf (name, sizeof (name), "%d/ZMQbg/IO/%d", prefix_, n);
+        const pid_t tid = await_thread_named (name);
+        TEST_ASSERT_TRUE_MESSAGE (tid > 0, name);
+
+        cpu_set_t mask;
+        CPU_ZERO (&mask);
+        TEST_ASSERT_SUCCESS_ERRNO (
+          sched_getaffinity (tid, sizeof (mask), &mask));
+        TEST_ASSERT_EQUAL_INT_MESSAGE (expected_count_, cpu_set_count (&mask),
+                                       name);
+        if (expected_count_ == 1)
+            TEST_ASSERT_TRUE_MESSAGE (CPU_ISSET (cpus_[n], &mask), name);
+    }
+
+    TEST_ASSERT_SUCCESS_ERRNO (zmq_close (socket));
+    TEST_ASSERT_SUCCESS_ERRNO (zmq_ctx_term (ctx));
+}
+
+void test_ctx_thread_affinity_pin ()
+{
+    cpu_set_t available;
+    CPU_ZERO (&available);
+    if (sched_getaffinity (0, sizeof (available), &available) != 0)
+        TEST_IGNORE_MESSAGE ("sched_getaffinity failed");
+
+    int cpus[2];
+    int found = 0;
+    for (int i = 0; i < CPU_SETSIZE && found < 2; i++)
+        if (CPU_ISSET (i, &available))
+            cpus[found++] = i;
+    if (found < 2)
+        TEST_IGNORE_MESSAGE ("needs at least 2 usable CPUs");
+
+    //  Off (the default): every I/O thread gets the whole list as one mask.
+    check_io_thread_affinity (1, 0, cpus, 2);
+
+    //  On: I/O thread n is pinned to the n-th CPU of the list alone.
+    check_io_thread_affinity (2, 1, cpus, 1);
+}
+
+#endif
 
 void test_ctx_thread_opts ()
 {
@@ -110,6 +226,24 @@ void test_ctx_thread_opts ()
                                                 ZMQ_THREAD_AFFINITY_CPU_REMOVE,
                                                 cpus_remove[idx]));
     }
+
+
+    // test per-thread affinity pinning:
+
+    // off by default: the whole affinity list is applied as one mask to every
+    // background thread. When on, each I/O thread gets a single CPU of the
+    // list instead; see test_ctx_thread_affinity_pin below.
+    TEST_ASSERT_EQUAL_INT (
+      0, zmq_ctx_get (get_test_context (), ZMQ_THREAD_AFFINITY_CPU_PIN));
+    TEST_ASSERT_SUCCESS_ERRNO (
+      zmq_ctx_set (get_test_context (), ZMQ_THREAD_AFFINITY_CPU_PIN, 1));
+    TEST_ASSERT_EQUAL_INT (
+      1, zmq_ctx_get (get_test_context (), ZMQ_THREAD_AFFINITY_CPU_PIN));
+    TEST_ASSERT_FAILURE_ERRNO (
+      EINVAL,
+      zmq_ctx_set (get_test_context (), ZMQ_THREAD_AFFINITY_CPU_PIN, -1));
+    TEST_ASSERT_SUCCESS_ERRNO (
+      zmq_ctx_set (get_test_context (), ZMQ_THREAD_AFFINITY_CPU_PIN, 0));
 
 
     // test INTEGER thread name prefix:
@@ -276,6 +410,9 @@ int main (void)
     RUN_TEST (test_ctx_option_msg_t_size);
     RUN_TEST (test_ctx_option_ipv6_set);
     RUN_TEST (test_ctx_thread_opts);
+#ifdef ZMQ_HAVE_LINUX
+    RUN_TEST (test_ctx_thread_affinity_pin);
+#endif
     RUN_TEST (test_ctx_zero_copy);
     RUN_TEST (test_ctx_option_blocky);
     RUN_TEST (test_ctx_option_invalid);

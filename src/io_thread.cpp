@@ -29,11 +29,14 @@ zmq::io_thread_t::~io_thread_t ()
 
 void zmq::io_thread_t::start ()
 {
+    //  The slot is both this thread's ZMQ_AFFINITY bit (see
+    //  ctx_t::choose_io_thread) and, under ZMQ_THREAD_AFFINITY_CPU_PIN, the
+    //  index of the CPU it is pinned to.
+    const uint32_t slot = get_tid () - zmq::ctx_t::reaper_tid - 1;
     char name[16] = "";
-    snprintf (name, sizeof (name), "IO/%u",
-              get_tid () - zmq::ctx_t::reaper_tid - 1);
+    snprintf (name, sizeof (name), "IO/%u", slot);
     //  Start the underlying I/O thread.
-    _poller->start (name);
+    _poller->start (name, static_cast<int> (slot));
 }
 
 void zmq::io_thread_t::stop ()

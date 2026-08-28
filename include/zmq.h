@@ -188,6 +188,8 @@ ZMQ_EXPORT void zmq_version (int *major_, int *minor_, int *patch_);
 #define ZMQ_THREAD_AFFINITY_CPU_ADD 7
 #define ZMQ_THREAD_AFFINITY_CPU_REMOVE 8
 #define ZMQ_THREAD_NAME_PREFIX 9
+/*  Vibe custom: pin each I/O thread to one CPU of the affinity list          */
+#define ZMQ_THREAD_AFFINITY_CPU_PIN 9001
 
 /*  Default for new contexts                                                  */
 #define ZMQ_IO_THREADS_DFLT 1

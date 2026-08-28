@@ -97,6 +97,23 @@ internal context's threads.
 Default value:: -1
 
 
+ZMQ_THREAD_AFFINITY_CPU_PIN: Pin each I/O thread to its own CPU
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+By default the CPU list built with 'ZMQ_THREAD_AFFINITY_CPU_ADD' is applied as a
+single mask to every internal thread, so N I/O threads share N CPUs and the
+operating system is free to run several of them on the same CPU and to migrate
+them as a group. When 'ZMQ_THREAD_AFFINITY_CPU_PIN' is set to a non-zero value
+each I/O thread is instead pinned to exactly one CPU of the list: I/O thread n
+gets the n-th CPU in ascending order, which is also the CPU selected by bit n of
+the 'ZMQ_AFFINITY' socket option. Threads that are not I/O threads (the reaper),
+and I/O threads whose index exceeds the size of the list, keep the full mask.
+This option is only supported on Linux.
+This option only applies before creating any sockets on the context.
+
+[horizontal]
+Default value:: 0
+
+
 ZMQ_THREAD_NAME_PREFIX: Set name prefix for I/O threads
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The 'ZMQ_THREAD_NAME_PREFIX' argument sets a numeric prefix to each thread
