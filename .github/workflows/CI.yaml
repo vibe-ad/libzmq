@@ -157,9 +157,9 @@ jobs:
       ANDROID_NDK_ROOT: /tmp/${{ matrix.NDK_VERSION }}
     steps:
     - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@c26a08ba26249b81327e26f6ef381897b6a8754d # v1.0.2
       if: matrix.os == 'windows-2025'
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       if: matrix.WITH_LIBSODIUM == 'ON'
       with:
         repository: jedisct1/libsodium
@@ -175,7 +175,7 @@ jobs:
       shell: powershell
       working-directory: libsodium
       run: Copy-Item "bin\${env:Platform}\${env:Configuration}\${env:MSVCVERSION}\dynamic\libsodium.lib" -Destination "bin\${env:Platform}\${env:Configuration}\${env:MSVCVERSION}\dynamic\sodium.lib"
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         path: libzmq
     - run: md build_libzmq
@@ -195,7 +195,7 @@ jobs:
       run: ctest -C "%Configuration%"
     - name: Add debian packages
       if: matrix.os == 'ubuntu-latest' && (matrix.BUILD_TYPE != 'coverage' || github.repository == 'zeromq/libzmq')
-      uses: myci-actions/add-deb-repo@10
+      uses: myci-actions/add-deb-repo@5275891305537d029f5f3fa7ed48d367ec0caf27 # 10
       with:
         repo-name: obs
         repo: deb http://download.opensuse.org/repositories/network:/messaging:/zeromq:/git-stable/xUbuntu_20.04/ ./
@@ -212,7 +212,7 @@ jobs:
       run: ./ci_build.sh
     - name: coveralls
       if: matrix.BUILD_TYPE == 'coverage' && github.repository == 'zeromq/libzmq'
-      uses: coverallsapp/github-action@master
+      uses: coverallsapp/github-action@09b709cf6a16e30b0808ba050c7a6e8a5ef13f8d # v1.2.5
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path-to-lcov: /home/runner/work/libzmq/libzmq/libzmq/lcov.info

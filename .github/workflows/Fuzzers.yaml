@@ -18,7 +18,7 @@ jobs:
     steps:
     - name: Build Fuzzers (${{ matrix.san }})
       id: build
-      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
+      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@bee2a55811717482b3e24e5d53246622a6453b1f # master
       with:
         sanitizer: ${{ matrix.san }}
         oss-fuzz-project-name: 'libzmq'
@@ -26,7 +26,7 @@ jobs:
         dry-run: false
     - name: Run Fuzzers (${{ matrix.san }})
       id: run
-      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
+      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@bee2a55811717482b3e24e5d53246622a6453b1f # master
       with:
         sanitizer: ${{ matrix.san }}
         oss-fuzz-project-name: 'libzmq'
